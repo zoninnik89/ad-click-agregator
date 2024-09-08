@@ -1,13 +1,17 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	protoBuff "github.com/zoninnik89/commons/api"
+)
 
 type Handler struct {
-	// gateway
+	client protoBuff.AdsServiceClient
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(client protoBuff.AdsServiceClient) *Handler {
+	return &Handler{client}
 }
 
 func (handler Handler) registerRoutes(mux *http.ServeMux) {
@@ -15,5 +19,12 @@ func (handler Handler) registerRoutes(mux *http.ServeMux) {
 }
 
 func (handler Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Request) {
+	adID := request.PathValue("adID")
+	adTitle := request.PathValue("adtitle")
+
+	handler.client.CreateAd(request.Context(), &protoBuff.CreateAdRequest{
+		AdId:    adID,
+		AdTitle: adTitle,
+	})
 
 }
