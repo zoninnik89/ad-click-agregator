@@ -1,3 +1,3 @@
-module github.com/zoninnik/ad-click-aggregator/common
+module github.com/zoninnik89/ad-click-aggregator/ads
 
 go 1.23.1
