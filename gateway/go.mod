@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/joho/godotenv v1.5.1
-	github.com/zoninnik89/commons v0.0.0-20240908163226-52846c4d1a25
+	github.com/zoninnik89/commons v0.0.0-20240908200109-c6e6e93b86c1
 	google.golang.org/grpc v1.66.0
 )
 

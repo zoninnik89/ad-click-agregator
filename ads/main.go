@@ -30,6 +30,8 @@ func main() {
 
 	service.CreateAd(context.Background())
 
+	log.Println("GRPC server started at ", grpcAddr)
+
 	if err := grpcServer.Serve(listner); err != nil {
 		log.Fatal(err.Error())
 	}
