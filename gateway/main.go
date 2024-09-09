@@ -1,34 +1,53 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
 	common "github.com/zoninnik89/commons"
-	protoBuff "github.com/zoninnik89/commons/api"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/zoninnik89/commons/discovery"
+	"github.com/zoninnik89/commons/discovery/consul"
 )
 
 var (
-	httpAddress    = common.EnvString("HTTP_ADDR", ":8080")
-	adsServiceAddr = "localhost:2000"
+	serviceName   = "gateway"
+	httpAddress   = common.EnvString("HTTP_ADDR", ":8080")
+	consulAddress = common.EnvString("CONSUL_ADDR", ":8500")
 )
 
 func main() {
-	conn, err := grpc.NewClient(adsServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// add open telemetry
+
+	registry, err := consul.NewRegistry(consulAddress, serviceName)
 	if err != nil {
-		log.Fatalf("Failed to establish connection with server: %v", err)
+		panic(err)
 	}
-	defer conn.Close()
 
-	log.Println("Dialing ads service at ", adsServiceAddr)
+	ctx := context.Background()
+	instanceID := discovery.GenerateInstanceID(serviceName)
+	if err := registry.Register(ctx, instanceID, serviceName, httpAddress); err != nil {
+		panic(err)
+	}
 
-	client := protoBuff.NewAdsServiceClient(conn)
+	go func() {
+		for {
+			if err := registry.HealthCheck(instanceID, serviceName); err != nil {
+				log.Fatal("failed to health check")
+			}
+			time.Sleep(time.Second * 1)
+		}
+	}()
+
+	defer registry.Deregister(ctx, instanceID, serviceName)
 
 	mux := http.NewServeMux()
-	handler := NewHandler(client)
+	adsGateway := gateway.NewGRPCGateway(registry)
+
+	handler := NewHandler(adsGateway)
 	handler.registerRoutes(mux)
 
 	log.Printf("Starting HTTP server at %s", httpAddress)

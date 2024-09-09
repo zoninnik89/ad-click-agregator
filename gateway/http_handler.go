@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
 	common "github.com/zoninnik89/commons"
 	protoBuff "github.com/zoninnik89/commons/api"
 	"google.golang.org/grpc/codes"
@@ -11,15 +12,20 @@ import (
 )
 
 type Handler struct {
-	client protoBuff.AdsServiceClient
+	gateway gateway.AdGateway
 }
 
-func NewHandler(client protoBuff.AdsServiceClient) *Handler {
-	return &Handler{client}
+func NewHandler(gateway gateway.AdGateway) *Handler {
+	return &Handler{gateway}
 }
 
 func (handler *Handler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/ads", handler.HandleCreateAd)
+	mux.HandleFunc("GET /api/ads/{adID}", handler.handleGetAd)
+}
+
+func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Request) {
+
 }
 
 func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Request) {
