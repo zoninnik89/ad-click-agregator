@@ -10,17 +10,19 @@ import (
 
 type GrpcHandler struct {
 	protoBuff.UnimplementedAdsServiceServer
+
+	service AdsService
 }
 
-func NewGrpcHandler(grpcServer *grpc.Server) {
-	handler := &GrpcHandler{}
+func NewGrpcHandler(grpcServer *grpc.Server, service AdsService) {
+	handler := &GrpcHandler{
+		service: service,
+	}
 	protoBuff.RegisterAdsServiceServer(grpcServer, handler)
 }
 
-func (handler *GrpcHandler) CreateAd(context.Context, *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+func (handler *GrpcHandler) CreateAd(ctx context.Context, protoBuff *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
 	log.Println("New ad created!")
-	ad := &protoBuff.Ad{
-		ID: "42",
-	}
+	ad := handler.service.CreateAd(ctx, protoBuff)
 	return ad, nil
 }
