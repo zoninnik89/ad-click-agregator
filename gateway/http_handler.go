@@ -21,25 +21,45 @@ func NewHandler(gateway gateway.AdGateway) *Handler {
 
 func (handler *Handler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/ads", handler.HandleCreateAd)
-	mux.HandleFunc("GET /api/ads/{adID}", handler.handleGetAd)
+	mux.HandleFunc("GET /api/ads/{adID}", handler.HandleGetAd)
 }
 
 func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Request) {
+	advertiserID := request.PathValue("advertiserID")
+	adID := request.PathValue("adID")
 
+	ctx := request.Context()
+	ad, err := handler.gateway.GetAd(ctx, advertiserID, adID)
+	rStatus := status.Convert(err)
+	if rStatus != nil {
+		if rStatus.Code() != codes.InvalidArgument {
+			common.WriteError(writer, http.StatusBadRequest, rStatus.Message())
+			return
+		}
+
+		common.WriteError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	common.WriteJson(writer, http.StatusOK, ad)
 }
 
 func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Request) {
-	adID := request.PathValue("adID")
-	adTitle := request.PathValue("adTitle")
+	adID := request.PathValue("ID")
+	advertiserID := request.PathValue("AdvertiserID")
+	adTitle := request.PathValue("Title")
+	adURL := request.PathValue("AdURL")
 
 	if err := validateAd(adID, adTitle); err != nil {
 		common.WriteError(writer, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	ad, err := handler.client.CreateAd(request.Context(), &protoBuff.CreateAdRequest{
-		AdId:    adID,
-		AdTitle: adTitle,
+	ad, err := handler.gateway.CreateAd(request.Context(), &protoBuff.CreateAdRequest{
+		ID:           adID,
+		AdvertiserID: advertiserID,
+		Title:        adTitle,
+		AdURL:        adURL,
 	})
 
 	rStatus := status.Convert(err)
