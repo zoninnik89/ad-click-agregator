@@ -21,8 +21,15 @@ func NewGrpcHandler(grpcServer *grpc.Server, service AdsService) {
 	protoBuff.RegisterAdsServiceServer(grpcServer, handler)
 }
 
-func (handler *GrpcHandler) CreateAd(ctx context.Context, protoBuff *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+func (handler *GrpcHandler) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
+	return handler.service.GetAd(ctx, request)
+}
+
+func (handler *GrpcHandler) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
 	log.Println("New ad created!")
-	ad := handler.service.CreateAd(ctx, protoBuff)
+	ad, err := handler.service.CreateAd(ctx, request)
+	if err != nil {
+		return nil, err
+	}
 	return ad, nil
 }

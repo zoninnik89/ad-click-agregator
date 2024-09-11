@@ -16,8 +16,8 @@ func NewService(store AdsStore, gateway gateway.AdGateway) *Service {
 	return &Service{store, gateway}
 }
 
-func (service *Service) GetAd(ctx context.Context, protoBuff *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
-	ad, err := service.store.Get(ctx, protoBuff.AdID, protoBuff.AdvertiserID)
+func (service *Service) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
+	ad, err := service.store.Get(ctx, request.AdID, request.AdvertiserID)
 	if err != nil {
 		return nil, err
 	}
@@ -25,11 +25,11 @@ func (service *Service) GetAd(ctx context.Context, protoBuff *protoBuff.GetAdReq
 	return ad.ToProto(), nil
 }
 
-func (service *Service) CreateAd(ctx context.Context, protoBuff *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+func (service *Service) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
 	id, err := service.store.Create(ctx, Ad{
-		AdvertiserID: protoBuff.AdvertiserID,
-		Title:        protoBuff.Title,
-		AdURL:        protoBuff.AdURL,
+		AdvertiserID: request.AdvertiserID,
+		Title:        request.Title,
+		AdURL:        request.AdURL,
 	})
 
 	if err != nil {
@@ -38,9 +38,9 @@ func (service *Service) CreateAd(ctx context.Context, protoBuff *protoBuff.Creat
 
 	ad := &protoBuff.Ad{
 		ID:           id.Hex(),
-		AdvertiserID: protoBuff.AdvertiserID,
-		Title:        protoBuff.Title,
-		AdURL:        protoBuff.AdURL,
+		AdvertiserID: request.AdvertiserID,
+		Title:        request.Title,
+		AdURL:        request.AdURL,
 	}
 
 	return ad, nil

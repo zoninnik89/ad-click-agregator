@@ -16,7 +16,7 @@ func NewGRPCGateway(registry discovery.Registry) *Gateway {
 	return &Gateway{registry}
 }
 
-func (gateway *Gateway) CreateAd(ctx context.Context, proto *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+func (gateway *Gateway) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
 	conn, err := discovery.ServiceConnection(context.Background(), "ads", gateway.registry)
 	if err != nil {
 		log.Fatalf("failed to dial server: %v", err)
@@ -25,10 +25,9 @@ func (gateway *Gateway) CreateAd(ctx context.Context, proto *protoBuff.CreateAdR
 	client := protoBuff.NewAdsServiceClient(conn)
 
 	return client.CreateAd(ctx, &protoBuff.CreateAdRequest{
-		ID:           proto.ID,
-		AdvertiserID: proto.AdvertiserID,
-		Title:        proto.Title,
-		AdURL:        proto.AdURL,
+		AdvertiserID: request.AdvertiserID,
+		Title:        request.Title,
+		AdURL:        request.AdURL,
 	})
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
@@ -45,18 +44,16 @@ func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Re
 }
 
 func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Request) {
-	adID := request.PathValue("ID")
 	advertiserID := request.PathValue("AdvertiserID")
 	adTitle := request.PathValue("Title")
 	adURL := request.PathValue("AdURL")
 
-	if err := validateAd(adID, adTitle); err != nil {
-		common.WriteError(writer, http.StatusBadRequest, err.Error())
-		return
-	}
+	//if err := validateAd(adID, adTitle); err != nil {
+	//	common.WriteError(writer, http.StatusBadRequest, err.Error())
+	//	return
+	//}
 
 	ad, err := handler.gateway.CreateAd(request.Context(), &protoBuff.CreateAdRequest{
-		ID:           adID,
 		AdvertiserID: advertiserID,
 		Title:        adTitle,
 		AdURL:        adURL,
@@ -78,12 +75,12 @@ func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http
 
 }
 
-func validateAd(adID string, adTitle string) error {
-	if len(adID) == 0 {
-		return errors.New("ad ID is missing")
-	}
-	if len(adTitle) == 0 {
-		return errors.New("ad Title is missing")
-	}
-	return nil
-}
+//func validateAd(adID string, adTitle string) error {
+//	if len(adID) == 0 {
+//		return errors.New("ad ID is missing")
+//	}
+//	if len(adTitle) == 0 {
+//		return errors.New("ad Title is missing")
+//	}
+//	return nil
+//}

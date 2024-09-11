@@ -11,5 +11,6 @@ type Gateway struct {
 }
 
 func NewGRPCGateway(registry discovery.Registry) *Gateway {
+
 	return &Gateway{registry}
 }

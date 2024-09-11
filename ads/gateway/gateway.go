@@ -2,7 +2,7 @@ package gateway
 
 import (
 	"context"
-	// pb "github.com/sikozonpc/commons/api"
+	// protoBuff "github.com/zoninnik89/commons/api"
 )
 
 type AdGateway interface {

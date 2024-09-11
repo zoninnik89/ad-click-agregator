@@ -8,8 +8,8 @@ import (
 )
 
 type AdsService interface {
-	GetAdd(context.Context, *protoBuff.GetAdRequest) (protoBuff.Ad, error)
-	CreateAd(context.Context, *protoBuff.CreateAdRequest) (protoBuff.Ad, error)
+	GetAd(context.Context, *protoBuff.GetAdRequest) (*protoBuff.Ad, error)
+	CreateAd(context.Context, *protoBuff.CreateAdRequest) (*protoBuff.Ad, error)
 }
 
 type AdsStore interface {
