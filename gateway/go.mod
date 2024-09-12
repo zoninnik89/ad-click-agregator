@@ -4,11 +4,9 @@ go 1.23.1
 
 require (
 	github.com/joho/godotenv v1.5.1
-	//github.com/zoninnik89/commons v0.0.0-20240909201340-3c99e218d9c4
+	github.com/zoninnik89/commons v0.1.4
 	google.golang.org/grpc v1.66.1
 )
-
-require github.com/zoninnik89/commons v0.0.0-20240911175825-be15d755c981
 
 require (
 	github.com/armon/go-metrics v0.4.1 // indirect
