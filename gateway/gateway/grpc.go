@@ -44,3 +44,25 @@ func (gateway *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*
 		AdID:         adID,
 	})
 }
+
+func (gateway *Gateway) SendClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
+	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", gateway.registry)
+	if err != nil {
+		log.Fatalf("Failed to dial server: %v", err)
+	}
+
+	client := protoBuff.NewAggregatorServiceClient(conn)
+	return client.SendClick(ctx, request)
+}
+
+func (gateway *Gateway) GetClickCounter(ctx context.Context, adID string) (*protoBuff.ClickCounter, error) {
+	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", gateway.registry)
+	if err != nil {
+		log.Fatalf("Failed to dial server: %v", err)
+	}
+
+	client := protoBuff.NewAggregatorServiceClient(conn)
+	return client.GetClickCounter(ctx, &protoBuff.GetClicksCounterRequest{
+		AdId: adID,
+	})
+}

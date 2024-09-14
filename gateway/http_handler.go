@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
@@ -14,13 +16,26 @@ type Handler struct {
 	gateway gateway.AdGateway
 }
 
+type CreateAdRequestData struct {
+	AdvertiserID string `json:"advertiserID"`
+	AdTitle      string `json:"adTitle"`
+	AdURL        string `json:"adURL"`
+}
+
+type SendClickRequestData struct {
+	AdID         string `json:"adID"`
+	ImpressionID string `json:"impressionID"`
+}
+
 func NewHandler(gateway gateway.AdGateway) *Handler {
 	return &Handler{gateway}
 }
 
 func (handler *Handler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/ads", handler.HandleCreateAd)
-	mux.HandleFunc("GET /api/ads/{adID}", handler.HandleGetAd)
+	mux.HandleFunc("GET /api/ads?adId={adID}&advertiserID={advertiserID}", handler.HandleGetAd)
+	mux.HandleFunc("GET /api/counter/{adId}", handler.HandleGetCounter)
+	mux.HandleFunc("POST api/sendclick", handler.HandleSendClick)
 }
 
 func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Request) {
@@ -44,9 +59,23 @@ func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Re
 }
 
 func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Request) {
-	advertiserID := request.PathValue("AdvertiserID")
-	adTitle := request.PathValue("Title")
-	adURL := request.PathValue("AdURL")
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer request.Body.Close()
+
+	var requestData CreateAdRequestData
+	err = json.Unmarshal(body, &requestData)
+	if err != nil {
+		http.Error(writer, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	advertiserID := requestData.AdvertiserID
+	adTitle := requestData.AdTitle
+	adURL := requestData.AdURL
 
 	//if err := validateAd(adID, adTitle); err != nil {
 	//	common.WriteError(writer, http.StatusBadRequest, err.Error())
@@ -73,6 +102,63 @@ func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http
 
 	common.WriteJson(writer, http.StatusOK, ad)
 
+}
+
+func (handler *Handler) HandleGetCounter(writer http.ResponseWriter, request *http.Request) {
+	adID := request.PathValue("adID")
+
+	ctx := request.Context()
+	ad, err := handler.gateway.GetClickCounter(ctx, adID)
+	rStatus := status.Convert(err)
+	if rStatus != nil {
+		if rStatus.Code() != codes.InvalidArgument {
+			common.WriteError(writer, http.StatusBadRequest, rStatus.Message())
+			return
+		}
+
+		common.WriteError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	common.WriteJson(writer, http.StatusOK, ad)
+}
+
+func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Request) {
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer request.Body.Close()
+
+	var requestData SendClickRequestData
+	err = json.Unmarshal(body, &requestData)
+	if err != nil {
+		http.Error(writer, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	adID := requestData.AdID
+	impressionID := requestData.AdID
+
+	click, err := handler.gateway.SendClick(request.Context(), &protoBuff.SendClickRequest{
+		AdID:         adID,
+		ImpressionID: impressionID,
+	})
+
+	rStatus := status.Convert(err)
+
+	if rStatus != nil {
+		if rStatus.Code() != codes.InvalidArgument {
+			common.WriteJson(writer, http.StatusBadRequest, rStatus.Message())
+			return
+		}
+
+		common.WriteError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	common.WriteJson(writer, http.StatusOK, click)
 }
 
 //func validateAd(adID string, adTitle string) error {
