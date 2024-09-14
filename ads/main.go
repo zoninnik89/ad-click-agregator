@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/zoninnik89/ad-click-aggregator/ads/gateway"
 	"github.com/zoninnik89/commons/discovery"
 	"github.com/zoninnik89/commons/discovery/consul"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -11,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"google.golang.org/grpc"
 	"net"
+	"strconv"
 	"time"
 
 	_ "github.com/zoninnik89/ad-click-aggregator/ads/gateway"
@@ -24,6 +24,7 @@ import (
 	_ "go.mongodb.org/mongo-driver/mongo/readpref"
 	zap "go.uber.org/zap"
 	_ "google.golang.org/grpc"
+	_ "strconv"
 )
 
 var (
@@ -78,11 +79,10 @@ func main() {
 	}
 	defer listner.Close()
 
-	gtw := gateway.NewGRPCGateway(registry)
-
 	store := NewStore(mongoClient)
-	cache := NewCache(500)
-	service := NewService(store, gtw, cache)
+	cacheCap, _ := strconv.Atoi(common.EnvString("CACHE_CAP", "500"))
+	cache := NewCache(cacheCap)
+	service := NewService(store, cache)
 
 	NewGrpcHandler(grpcServer, service)
 

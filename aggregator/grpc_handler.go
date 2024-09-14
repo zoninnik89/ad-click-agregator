@@ -19,8 +19,13 @@ func NewGrpcHandler(grpcServer *grpc.Server, service AggregatorService) {
 }
 
 func (handler *GrpcHandler) SendClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
-	click, err := handler.service.SendClick(ctx, request)
+	clickIsValid, err := handler.service.ValidateClick(ctx, request)
+	if !clickIsValid {
+		return nil, err
+	}
+	click, err := handler.service.StoreClick(ctx, request)
 	if err != nil {
+
 		return nil, err
 	}
 	return click, nil
