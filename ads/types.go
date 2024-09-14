@@ -22,6 +22,7 @@ type Ad struct {
 	AdvertiserID string             `bson:"advertiserID,omitempty"`
 	Title        string             `bson:"title,omitempty"`
 	AdURL        string             `bson:"adURL,omitempty"`
+	ImpressionID string
 }
 
 func (ad *Ad) ToProto() *protoBuff.Ad {
@@ -30,5 +31,6 @@ func (ad *Ad) ToProto() *protoBuff.Ad {
 		AdvertiserID: ad.AdvertiserID,
 		Title:        ad.Title,
 		AdURL:        ad.AdURL,
+		ImpressionId: ad.ImpressionID,
 	}
 }

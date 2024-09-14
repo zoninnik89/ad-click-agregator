@@ -3,8 +3,10 @@ module github.com/zoninnik89/ad-click-aggregator/ads
 go 1.23.1
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/zoninnik89/commons v0.1.4
+	github.com/zoninnik89/commons v0.1.5
 	go.mongodb.org/mongo-driver v1.16.1
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.66.2

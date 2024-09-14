@@ -74,14 +74,15 @@ func main() {
 
 	listner, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		logger.Fatalf("failed to listen:", zap.Error(err))
+		logger.Fatal("failed to listen:", zap.Error(err))
 	}
 	defer listner.Close()
 
 	gtw := gateway.NewGRPCGateway(registry)
 
 	store := NewStore(mongoClient)
-	service := NewService(store, gtw)
+	cache := NewCache(500)
+	service := NewService(store, gtw, cache)
 
 	NewGrpcHandler(grpcServer, service)
 
