@@ -18,7 +18,7 @@ type AdsStore interface {
 }
 
 type Ad struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty"`
+	AdID         primitive.ObjectID `bson:"_id,omitempty"`
 	AdvertiserID string             `bson:"advertiserID,omitempty"`
 	Title        string             `bson:"title,omitempty"`
 	AdURL        string             `bson:"adURL,omitempty"`
@@ -27,7 +27,7 @@ type Ad struct {
 
 func (ad *Ad) ToProto() *protoBuff.Ad {
 	return &protoBuff.Ad{
-		ID:           ad.ID.Hex(),
+		AdID:         ad.ID.Hex(),
 		AdvertiserID: ad.AdvertiserID,
 		Title:        ad.Title,
 		AdURL:        ad.AdURL,

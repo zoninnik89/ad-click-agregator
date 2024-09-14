@@ -2,7 +2,7 @@ module github.com/zoninnik89/ad-click-aggregator/aggregator
 
 go 1.23.1
 
-require github.com/zoninnik89/commons v0.1.9
+require github.com/zoninnik89/commons v0.1.12
 
 require (
 	golang.org/x/net v0.29.0 // indirect

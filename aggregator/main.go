@@ -54,12 +54,12 @@ func main() {
 
 	listner, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		logger.Fatalf("failed to listen:", zap.Error(err))
+		logger.Fatal("failed to listen:", zap.Error(err))
 	}
 	defer listner.Close()
 
 	gtw := gateway.NewGRPCGateway(registry)
-	store := NewStore(ctx)
+	store := NewCountMinSketch(5, 20)
 	service := NewService(store, gtw)
 
 	NewGrpcHandler(grpcServer, service)

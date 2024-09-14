@@ -19,7 +19,7 @@ type ClickCounter struct {
 type Click struct {
 	ClickID    string
 	AdID       string
-	Timestamp  int32
+	Timestamp  int64
 	IsAccepted bool
 }
 
@@ -32,8 +32,8 @@ func (clickCounter *ClickCounter) ToProto() *protoBuff.ClickCounter {
 
 func (click *Click) ToProto() *protoBuff.Click {
 	return &protoBuff.Click{
-		ClickID:   click.ClickID,
-		AdID:      click.AdID,
-		Timestamp: click.Timestamp,
+		AdID:       click.AdID,
+		Timestamp:  click.Timestamp,
+		IsAccepted: click.IsAccepted,
 	}
 }

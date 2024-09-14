@@ -3,38 +3,33 @@ package main
 import (
 	"context"
 	"github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
+	"time"
 
 	protoBuff "github.com/zoninnik89/commons/api"
 )
 
 type Service struct {
-	store   ClickStore
+	store   CountMinSketch
 	gateway gateway.AdsGateway
 }
 
-func NewService(store ClickStore, gateway gateway.AdsGateway) *Service {
+func NewService(store CountMinSketch, gateway gateway.AdsGateway) *Service {
 	return &Service{store: store, gateway: gateway}
 }
 
 func (service *Service) GetClicksCounter(ctx context.Context, request *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error) {
-	counter, err := service.store.Get(ctx, request.AdId)
-	if err != nil {
-		return nil, err
-	}
+	counter := service.store.GetCount(request.AdId)
+
+	//TO DO: add check if Ad exists
+
 	return counter.ToProto(), nil
 }
 
 func (service *Service) StoreClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
-	var timestamp int32 = 999999 // add gen func
-	id, err := service.store.StoreClick(ctx, Click{
-		AdID: request.AdID,
-	})
-	if err != nil {
-		return nil, err
-	}
+	var timestamp int64 = service.GenerateTS()
+	service.store.Add(request.AdID)
 
 	click := &protoBuff.Click{
-		ClickID:    id,
 		AdID:       request.AdID,
 		Timestamp:  timestamp,
 		IsAccepted: true,
@@ -51,4 +46,7 @@ func (service *Service) ValidateClick(ctx context.Context, request *protoBuff.Se
 		return true, nil
 	}
 	return false, nil
+}
+func (service *Service) GenerateTS() int64 {
+	return time.Now().Unix()
 }
