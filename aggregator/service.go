@@ -27,7 +27,7 @@ func (service *Service) GetClicksCounter(ctx context.Context, request *protoBuff
 }
 
 func (service *Service) StoreClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
-	var timestamp int64 = service.GenerateTS()
+	var timestamp int64 = generateTS()
 	service.store.AddClick(request.AdID)
 
 	click := &protoBuff.Click{
@@ -48,6 +48,6 @@ func (service *Service) ValidateClick(ctx context.Context, request *protoBuff.Se
 	}
 	return false, nil
 }
-func (service *Service) GenerateTS() int64 {
+func generateTS() int64 {
 	return time.Now().Unix()
 }

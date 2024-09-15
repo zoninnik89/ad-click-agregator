@@ -61,8 +61,8 @@ func (cms *CountMinSketch) GetCount(adID string) *types.ClickCounter {
 		minCount = minOfTwo(minCount, cms.counts[i][index])
 	}
 	return &types.ClickCounter{
-		adId:        adID,
-		totalClicks: minCount,
+		AdId:        adID,
+		TotalClicks: minCount,
 	}
 }
 
