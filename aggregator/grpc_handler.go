@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"github.com/zoninnik89/ad-click-aggregator/aggregator/types"
 	protoBuff "github.com/zoninnik89/commons/api"
 	"google.golang.org/grpc"
 )
 
 type GrpcHandler struct {
 	protoBuff.UnimplementedAggregatorServiceServer
-	service AggregatorService
+	service types.AggregatorService
 }
 
-func NewGrpcHandler(grpcServer *grpc.Server, service AggregatorService) {
+func NewGrpcHandler(grpcServer *grpc.Server, service types.AggregatorService) {
 	handler := &GrpcHandler{
 		service: service,
 	}

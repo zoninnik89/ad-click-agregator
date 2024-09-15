@@ -3,17 +3,18 @@ package main
 import (
 	"context"
 	"github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
+	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
 	"time"
 
 	protoBuff "github.com/zoninnik89/commons/api"
 )
 
 type Service struct {
-	store   CountMinSketch
-	gateway gateway.AdsGateway
+	store   store.StoreInterface
+	gateway gateway.AdsGatewayInterface
 }
 
-func NewService(store CountMinSketch, gateway gateway.AdsGateway) *Service {
+func NewService(store store.StoreInterface, gateway gateway.AdsGatewayInterface) *Service {
 	return &Service{store: store, gateway: gateway}
 }
 
@@ -27,7 +28,7 @@ func (service *Service) GetClicksCounter(ctx context.Context, request *protoBuff
 
 func (service *Service) StoreClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
 	var timestamp int64 = service.GenerateTS()
-	service.store.Add(request.AdID)
+	service.store.AddClick(request.AdID)
 
 	click := &protoBuff.Click{
 		AdID:       request.AdID,

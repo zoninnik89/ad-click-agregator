@@ -1,6 +1,7 @@
-package main
+package storage
 
 import (
+	"github.com/zoninnik89/ad-click-aggregator/aggregator/types"
 	"hash/fnv"
 	"math"
 )
@@ -12,7 +13,7 @@ type CountMinSketch struct {
 	hashFuncs []func(data []byte) uint32
 }
 
-func NewCountMinSketch(depth int, width int) CountMinSketch {
+func NewCountMinSketch(depth int, width int) *CountMinSketch {
 	//initialize the 2d array
 	counts := make([][]int32, depth)
 	for i := range counts {
@@ -25,7 +26,7 @@ func NewCountMinSketch(depth int, width int) CountMinSketch {
 		hashFuncs[i] = createHshFunction(i)
 	}
 
-	return CountMinSketch{
+	return &CountMinSketch{
 		depth:     depth,
 		width:     width,
 		counts:    counts,
@@ -41,7 +42,7 @@ func createHshFunction(seed int) func([]byte) uint32 {
 	}
 }
 
-func (cms *CountMinSketch) Add(adID string) {
+func (cms *CountMinSketch) AddClick(adID string) {
 	data := []byte(adID)
 	for i := 0; i < cms.depth; i++ {
 		hash := cms.hashFuncs[i](data)
@@ -50,7 +51,7 @@ func (cms *CountMinSketch) Add(adID string) {
 	}
 }
 
-func (cms *CountMinSketch) GetCount(adID string) *ClickCounter {
+func (cms *CountMinSketch) GetCount(adID string) *types.ClickCounter {
 	data := []byte(adID)
 	var minCount int32 = math.MaxInt32
 
@@ -59,7 +60,7 @@ func (cms *CountMinSketch) GetCount(adID string) *ClickCounter {
 		index := hash % uint32(cms.width)
 		minCount = minOfTwo(minCount, cms.counts[i][index])
 	}
-	return &ClickCounter{
+	return &types.ClickCounter{
 		adId:        adID,
 		totalClicks: minCount,
 	}

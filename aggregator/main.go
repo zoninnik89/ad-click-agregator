@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
 	_ "github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
+	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
 	common "github.com/zoninnik89/commons"
 	"github.com/zoninnik89/commons/discovery"
 	"github.com/zoninnik89/commons/discovery/consul"
@@ -59,8 +60,8 @@ func main() {
 	defer listner.Close()
 
 	gtw := gateway.NewGRPCGateway(registry)
-	store := NewCountMinSketch(5, 20)
-	service := NewService(store, gtw)
+	storage := store.NewCountMinSketch(5, 20)
+	service := NewService(storage, gtw)
 
 	NewGrpcHandler(grpcServer, service)
 

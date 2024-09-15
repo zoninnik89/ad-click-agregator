@@ -5,6 +5,6 @@ import (
 	protoBuff "github.com/zoninnik89/commons/api"
 )
 
-type AdsGateway interface {
+type AdsGatewayInterface interface {
 	CheckIfAdIsValid(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.AdValidity, error)
 }
