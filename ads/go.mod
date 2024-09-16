@@ -6,7 +6,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/zoninnik89/commons v0.1.9
+	github.com/zoninnik89/commons v0.1.13
 	go.mongodb.org/mongo-driver v1.16.1
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.66.2

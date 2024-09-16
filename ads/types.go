@@ -27,7 +27,7 @@ type Ad struct {
 
 func (ad *Ad) ToProto() *protoBuff.Ad {
 	return &protoBuff.Ad{
-		AdID:         ad.ID.Hex(),
+		AdID:         ad.AdID.Hex(),
 		AdvertiserID: ad.AdvertiserID,
 		Title:        ad.Title,
 		AdURL:        ad.AdURL,

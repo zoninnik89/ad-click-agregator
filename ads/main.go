@@ -32,7 +32,7 @@ var (
 	grpcAddr    = common.EnvString("GRPC_ADDR", "localhost:2000")
 	consulAddr  = common.EnvString("CONSUL_ADDR", "localhost:8500")
 	mongoUser   = common.EnvString("MONGO_DB_USER", "root")
-	mongoPass   = common.EnvString("MONGO_DB_PASS", "example")
+	mongoPass   = common.EnvString("MONGO_DB_PASS", "rootpassword")
 	mongoAddr   = common.EnvString("MONGO_DB_HOST", "localhost:27017")
 )
 
