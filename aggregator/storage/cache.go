@@ -50,7 +50,7 @@ func (cache *Cache) Get(key string) bool {
 	}
 }
 
-func (cache *Cache) Put(key string) {
+func (cache *Cache) Put(key string) string {
 	if node, exists := cache.Cache[key]; exists {
 		cache.Remove(node)
 	}
@@ -63,4 +63,5 @@ func (cache *Cache) Put(key string) {
 		cache.Remove(lru)
 		delete(cache.Cache, lru.Key)
 	}
+	return newNode.Key
 }

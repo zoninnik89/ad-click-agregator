@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	_ "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -39,13 +40,18 @@ func (store *Store) Create(ctx context.Context, ad Ad) (primitive.ObjectID, erro
 func (store *Store) Get(ctx context.Context, id, advertiserId string) (*Ad, error) {
 	collection := store.db.Database(DbName).Collection(CollName)
 
-	adId, _ := primitive.ObjectIDFromHex(id)
+	adId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ad ID: %v", err)
+	}
+
+	filter := bson.M{
+		"_id":          adId,
+		"advertiserID": advertiserId,
+	}
 
 	var ad Ad
-	err := collection.FindOne(ctx, bson.M{
-		"_id":          adId,
-		"advertiserId": advertiserId,
-	}).Decode(&ad)
+	err = collection.FindOne(ctx, filter).Decode(&ad)
 
 	return &ad, err
 }

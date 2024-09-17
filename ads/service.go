@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/uuid"
 	protoBuff "github.com/zoninnik89/commons/api"
 	"log"
@@ -15,11 +14,10 @@ import (
 
 type Service struct {
 	store AdsStore
-	cache Cache
 }
 
-func NewService(store AdsStore, cache Cache) *Service {
-	return &Service{store, cache}
+func NewService(store AdsStore) *Service {
+	return &Service{store}
 }
 
 func (service *Service) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
@@ -29,9 +27,10 @@ func (service *Service) GetAd(ctx context.Context, request *protoBuff.GetAdReque
 	}
 	ad.ImpressionID, err = service.generateImpressionID(request.AdID)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Error generating impression ID: %v\n", err)
 		return nil, err
 	}
+	log.Printf("Impression id was successfully generated for ad: %v with value: %v\n", ad.AdID, ad.ImpressionID)
 
 	return ad.ToProto(), nil
 }
@@ -80,40 +79,8 @@ func (service *Service) generateImpressionID(adID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	service.cache.Put(signedToken)
+
+	log.Printf("Generated impression ID: %v at: %v with expiration time: %v", claims.ImpressionID, claims.IssuedAt, claims.ExpiresAt)
+
 	return signedToken, nil
-}
-
-func (service *Service) CheckAd(ctx context.Context, request *protoBuff.CheckAdIsValidRequest) (*protoBuff.AdValidity, error) {
-	adValidity := &protoBuff.AdValidity{
-		Valid: false,
-	}
-
-	if exists := service.cache.Get(request.ImpressionId); !exists {
-		return adValidity, nil
-	}
-
-	parsedToken, err := jwt.Parse(request.ImpressionId, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token method is HMAC
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return "secret", nil
-	})
-
-	// Handle parsing errors
-	if err != nil {
-		log.Println("Error parsing token:", err)
-		return adValidity, fmt.Errorf("error parsing token: %v", err)
-	}
-
-	// Check if the token is valid
-	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
-		// Access specific fields in the JWT claims
-		AdID := claims["AdID"]
-		adValidity.Valid = AdID == request.AdId
-		return adValidity, nil
-	} else {
-		return adValidity, fmt.Errorf("token is not valid")
-	}
 }

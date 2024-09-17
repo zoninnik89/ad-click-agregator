@@ -22,7 +22,7 @@ func NewGrpcHandler(grpcServer *grpc.Server, service AdsService) {
 }
 
 func (handler *GrpcHandler) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
-	log.Printf("Got to get ad")
+	log.Printf("Going to get the ad")
 	return handler.service.GetAd(ctx, request)
 }
 

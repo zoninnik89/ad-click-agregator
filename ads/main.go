@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"google.golang.org/grpc"
 	"net"
-	"strconv"
 	"time"
 
 	_ "github.com/zoninnik89/ad-click-aggregator/ads/gateway"
@@ -80,9 +79,7 @@ func main() {
 	defer listner.Close()
 
 	store := NewStore(mongoClient)
-	cacheCap, _ := strconv.Atoi(common.EnvString("CACHE_CAP", "500"))
-	cache := NewCache(cacheCap)
-	service := NewService(store, cache)
+	service := NewService(store)
 
 	NewGrpcHandler(grpcServer, service)
 
@@ -97,6 +94,8 @@ func main() {
 func connectToMongoDB(uri string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	//loggerOptions := options.Logger().SetComponentLevel(options.LogComponentAll, options.LogLevelDebug)
+	//client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetLoggerOptions(loggerOptions))
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, err
