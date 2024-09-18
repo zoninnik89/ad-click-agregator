@@ -1,9 +1,12 @@
-package main
+package producer
 
 import (
+	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	common "github.com/zoninnik89/commons"
 	"log"
+	"math"
+	"time"
 )
 
 var (
@@ -63,4 +66,22 @@ func (p *Producer) DeliveryReport(deliveryChan chan kafka.Event) {
 			}
 		}
 	}
+}
+
+func (p *Producer) Flush(timeoutMs int) int {
+	termChan := make(chan bool)
+
+	d, _ := time.ParseDuration(fmt.Sprintf("%dms", timeoutMs))
+	tEnd := time.Now().Add(d)
+	for p.Len() > 0 {
+		remain := tEnd.Sub(time.Now()).Seconds()
+		if remain <= 0.0 {
+			return p.Len()
+		}
+
+		p.handle.eventPoll(p.events,
+			int(math.Min(100, remain*1000)), 1000, termChan)
+	}
+
+	return 0
 }

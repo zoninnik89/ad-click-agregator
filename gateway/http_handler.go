@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/zoninnik89/ad-click-aggregator/gateway/producer"
 	"io"
 	"log"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 
 type Handler struct {
 	gateway gateway.AdGateway
+	queue   producer.ClickProducer
 }
 
 type CreateAdRequestData struct {
@@ -28,8 +31,8 @@ type SendClickRequestData struct {
 	ImpressionID string `json:"impressionID"`
 }
 
-func NewHandler(gateway gateway.AdGateway) *Handler {
-	return &Handler{gateway}
+func NewHandler(gateway gateway.AdGateway, queue producer.ClickProducer) *Handler {
+	return &Handler{gateway: gateway, queue: queue}
 }
 
 func (handler *Handler) registerRoutes(mux *http.ServeMux) {
@@ -146,21 +149,15 @@ func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *htt
 
 	log.Printf("click request has adID: %v and impressionID: %v", adID, impressionID)
 
-	click, err := handler.gateway.SendClick(request.Context(), &protoBuff.SendClickRequest{
-		AdID:         adID,
-		ImpressionID: impressionID,
-	})
+	value := adID + "," + impressionID
+	deliveryChan := make(chan kafka.Event)
 
-	rStatus := status.Convert(err)
+	err = handler.queue.Publish(value, "clicks", nil, deliveryChan)
 
-	if rStatus != nil {
-		if rStatus.Code() != codes.InvalidArgument {
-			common.WriteJson(writer, http.StatusBadRequest, rStatus.Message())
-			return
-		}
+	if err != nil {
 
-		common.WriteError(writer, http.StatusInternalServerError, err.Error())
-		return
+		common.WriteJson(writer, http.StatusBadRequest, err)
+
 	}
 
 	log.Printf("click request with adID: %v, was stored at: %v ", click.AdID, click.Timestamp)

@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
+	kafkaProducer "github.com/zoninnik89/ad-click-aggregator/gateway/producer"
 	common "github.com/zoninnik89/commons"
 	"github.com/zoninnik89/commons/discovery"
 	"github.com/zoninnik89/commons/discovery/consul"
@@ -46,22 +45,15 @@ func main() {
 
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
-	producer, err := NewProducer()
-	if err != nil {
-		log.Fatalf("failed to initialize producer: %v", err)
-	}
-
-	defer producer.Close()
-
-	fmt.Printf("Kafka PRODUCER 📨 started at http://localhost%s\n", ProducerPort)
-
-	if err := router.Run(ProducerPort); err != nil {
-		log.Printf("failed to run the server: %v", err)
-
 	mux := http.NewServeMux()
 	adsGateway := gateway.NewGRPCGateway(registry)
 
-	handler := NewHandler(adsGateway)
+	log.Println("starting Kafka Producer")
+
+	kp := kafkaProducer.NewKafkaProducer()
+	defer kp.Flush(10)
+
+	handler := NewHandler(adsGateway, kp)
 	handler.registerRoutes(mux)
 
 	log.Printf("Starting HTTP server at %s", httpAddress)
@@ -69,4 +61,5 @@ func main() {
 	if err := http.ListenAndServe(httpAddress, mux); err != nil {
 		log.Fatal("Failed to start http server")
 	}
+
 }

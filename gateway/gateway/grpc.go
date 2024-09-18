@@ -49,21 +49,6 @@ func (gateway *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*
 	return result, err
 }
 
-func (gateway *Gateway) SendClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
-	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", gateway.registry)
-	if err != nil {
-		log.Fatalf("Failed to dial server: %v", err)
-	}
-
-	client := protoBuff.NewAggregatorServiceClient(conn)
-	result, err := client.SendClick(ctx, request)
-	if err != nil {
-		log.Fatalf("Failed to send click with err: %v", err)
-	}
-
-	return result, err
-}
-
 func (gateway *Gateway) GetClickCounter(ctx context.Context, adID string) (*protoBuff.ClickCounter, error) {
 	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", gateway.registry)
 	if err != nil {
