@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
 	common "github.com/zoninnik89/commons"
@@ -17,7 +19,7 @@ import (
 
 type Handler struct {
 	gateway gateway.AdGateway
-	queue   producer.ClickProducer
+	queue   *producer.ClickProducer
 }
 
 type CreateAdRequestData struct {
@@ -31,7 +33,12 @@ type SendClickRequestData struct {
 	ImpressionID string `json:"impressionID"`
 }
 
-func NewHandler(gateway gateway.AdGateway, queue producer.ClickProducer) *Handler {
+type ClickResponseData struct {
+	AdID string `json:"adID"`
+	TS   string `json:"ts"`
+}
+
+func NewHandler(gateway gateway.AdGateway, queue *producer.ClickProducer) *Handler {
 	return &Handler{gateway: gateway, queue: queue}
 }
 
@@ -146,23 +153,37 @@ func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *htt
 
 	adID := requestData.AdID
 	impressionID := requestData.ImpressionID
+	ts := strconv.FormatInt(generateTS(), 10)
 
 	log.Printf("click request has adID: %v and impressionID: %v", adID, impressionID)
 
-	value := adID + "," + impressionID
-	deliveryChan := make(chan kafka.Event)
+	value := adID + "," + impressionID + "," + ts
 
+	deliveryChan := make(chan kafka.Event)
 	err = handler.queue.Publish(value, "clicks", nil, deliveryChan)
 
 	if err != nil {
-
 		common.WriteJson(writer, http.StatusBadRequest, err)
-
 	}
 
-	log.Printf("click request with adID: %v, was stored at: %v ", click.AdID, click.Timestamp)
+	e := <-deliveryChan
+	msg := e.(*kafka.Message)
 
-	common.WriteJson(writer, http.StatusOK, click)
+	if msg.TopicPartition.Error != nil {
+		log.Printf("Message was not published, error: %v", msg.TopicPartition.Error)
+	} else {
+		log.Printf("Message published in: %v", msg.TopicPartition)
+	}
+
+	close(deliveryChan)
+	log.Printf("click request with adID: %v, was stored at: %v ", adID, ts)
+
+	common.WriteJson(writer, http.StatusOK, ClickResponseData{AdID: adID, TS: ts})
+}
+
+func generateTS() int64 {
+	currentTime := time.Now().Unix()
+	return currentTime
 }
 
 //func validateAd(adID string, adTitle string) error {

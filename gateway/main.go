@@ -51,7 +51,7 @@ func main() {
 	log.Println("starting Kafka Producer")
 
 	kp := kafkaProducer.NewKafkaProducer()
-	defer kp.Flush(10)
+	defer kp.Producer.Flush(10)
 
 	handler := NewHandler(adsGateway, kp)
 	handler.registerRoutes(mux)

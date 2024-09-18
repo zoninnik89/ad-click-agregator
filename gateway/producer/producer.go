@@ -1,24 +1,20 @@
 package producer
 
 import (
-	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	common "github.com/zoninnik89/commons"
 	"log"
-	"math"
-	"time"
 )
 
 var (
 	KafkaServerAddress = common.EnvString("KAFKA_SERVER_ADDRESS", "localhost:9092")
-	KafkaTopic         = "clicks"
 )
 
-type Producer struct {
-	producer *kafka.Producer
+type ClickProducer struct {
+	Producer *kafka.Producer
 }
 
-func NewKafkaProducer() *Producer {
+func NewKafkaProducer() *ClickProducer {
 	configMap := &kafka.ConfigMap{
 		"bootstrap.servers":   KafkaServerAddress,
 		"delivery.timeout.ms": "1",
@@ -31,19 +27,19 @@ func NewKafkaProducer() *Producer {
 		log.Println(err.Error())
 	}
 
-	return &Producer{
-		producer: p,
+	return &ClickProducer{
+		Producer: p,
 	}
 }
 
-func (p *Producer) Publish(msg string, topic string, key []byte, deliveryChan chan kafka.Event) error {
+func (p *ClickProducer) Publish(msg string, topic string, key []byte, deliveryChan chan kafka.Event) error {
 	message := &kafka.Message{
 		Value:          []byte(msg),
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            key,
 	}
 
-	err := p.producer.Produce(message, deliveryChan)
+	err := p.Producer.Produce(message, deliveryChan)
 
 	if err != nil {
 		return err
@@ -52,7 +48,7 @@ func (p *Producer) Publish(msg string, topic string, key []byte, deliveryChan ch
 	return nil
 }
 
-func (p *Producer) DeliveryReport(deliveryChan chan kafka.Event) {
+func (p *ClickProducer) DeliveryReport(deliveryChan chan kafka.Event) {
 	for e := range deliveryChan {
 		switch e.(type) {
 		case *kafka.Message:
@@ -68,20 +64,20 @@ func (p *Producer) DeliveryReport(deliveryChan chan kafka.Event) {
 	}
 }
 
-func (p *Producer) Flush(timeoutMs int) int {
-	termChan := make(chan bool)
-
-	d, _ := time.ParseDuration(fmt.Sprintf("%dms", timeoutMs))
-	tEnd := time.Now().Add(d)
-	for p.Len() > 0 {
-		remain := tEnd.Sub(time.Now()).Seconds()
-		if remain <= 0.0 {
-			return p.Len()
-		}
-
-		p.handle.eventPoll(p.events,
-			int(math.Min(100, remain*1000)), 1000, termChan)
-	}
-
-	return 0
-}
+//func (p *ClickProducer) Flush(timeoutMs int) int {
+//	termChan := make(chan bool)
+//
+//	d, _ := time.ParseDuration(fmt.Sprintf("%dms", timeoutMs))
+//	tEnd := time.Now().Add(d)
+//	for p.producer.Len() > 0 {
+//		remain := tEnd.Sub(time.Now()).Seconds()
+//		if remain <= 0.0 {
+//			return p.producer.Len()
+//		}
+//
+//		p.producer.handle.eventPoll(p.producer.events,
+//			int(math.Min(100, remain*1000)), 1000, termChan)
+//	}
+//
+//	return 0
+//}
