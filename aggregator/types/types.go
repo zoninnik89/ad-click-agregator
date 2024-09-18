@@ -16,7 +16,6 @@ type ClickCounter struct {
 }
 
 type Click struct {
-	ClickID    string
 	AdID       string
 	Timestamp  int64
 	IsAccepted bool

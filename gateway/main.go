@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"time"
@@ -43,6 +45,18 @@ func main() {
 	}()
 
 	defer registry.Deregister(ctx, instanceID, serviceName)
+
+	producer, err := NewProducer()
+	if err != nil {
+		log.Fatalf("failed to initialize producer: %v", err)
+	}
+
+	defer producer.Close()
+
+	fmt.Printf("Kafka PRODUCER 📨 started at http://localhost%s\n", ProducerPort)
+
+	if err := router.Run(ProducerPort); err != nil {
+		log.Printf("failed to run the server: %v", err)
 
 	mux := http.NewServeMux()
 	adsGateway := gateway.NewGRPCGateway(registry)
