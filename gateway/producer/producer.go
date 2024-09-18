@@ -16,10 +16,10 @@ type ClickProducer struct {
 
 func NewKafkaProducer() *ClickProducer {
 	configMap := &kafka.ConfigMap{
-		"bootstrap.servers":   KafkaServerAddress,
-		"delivery.timeout.ms": "1",
-		"acks":                "all", //0-no ack, 1-leader, all,
-		"enable.idempotence":  "true",
+		"bootstrap.servers": KafkaServerAddress,
+		//"delivery.timeout.ms": "1",
+		//"acks":                "all", //0-no ack, 1-leader, all,
+		//"enable.idempotence":  "false",
 	}
 	p, err := kafka.NewProducer(configMap)
 
