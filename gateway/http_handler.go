@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
@@ -33,14 +34,14 @@ func NewHandler(gateway gateway.AdGateway) *Handler {
 
 func (handler *Handler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/ads", handler.HandleCreateAd)
-	mux.HandleFunc("GET /api/ads?adId={adID}&advertiserID={advertiserID}", handler.HandleGetAd)
-	mux.HandleFunc("GET /api/counter/{adId}", handler.HandleGetCounter)
-	mux.HandleFunc("POST api/sendclick", handler.HandleSendClick)
+	mux.HandleFunc("GET /api/ads", handler.HandleGetAd)
+	mux.HandleFunc("GET /api/counter/", handler.HandleGetCounter)
+	mux.HandleFunc("POST /api/sendclick", handler.HandleSendClick)
 }
 
 func (handler *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Request) {
-	advertiserID := request.PathValue("advertiserID")
-	adID := request.PathValue("adID")
+	advertiserID := request.URL.Query().Get("advertiserID")
+	adID := request.URL.Query().Get("adID")
 
 	ctx := request.Context()
 	ad, err := handler.gateway.GetAd(ctx, advertiserID, adID)
@@ -105,9 +106,10 @@ func (handler *Handler) HandleCreateAd(writer http.ResponseWriter, request *http
 }
 
 func (handler *Handler) HandleGetCounter(writer http.ResponseWriter, request *http.Request) {
-	adID := request.PathValue("adID")
+	adID := request.URL.Query().Get("adID")
 
 	ctx := request.Context()
+	log.Printf("Cur ad is: %v", adID)
 	ad, err := handler.gateway.GetClickCounter(ctx, adID)
 	rStatus := status.Convert(err)
 	if rStatus != nil {
@@ -124,6 +126,7 @@ func (handler *Handler) HandleGetCounter(writer http.ResponseWriter, request *ht
 }
 
 func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Request) {
+	log.Printf("received send click request")
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		http.Error(writer, "Failed to read request body", http.StatusBadRequest)
@@ -139,7 +142,9 @@ func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *htt
 	}
 
 	adID := requestData.AdID
-	impressionID := requestData.AdID
+	impressionID := requestData.ImpressionID
+
+	log.Printf("click request has adID: %v and impressionID: %v", adID, impressionID)
 
 	click, err := handler.gateway.SendClick(request.Context(), &protoBuff.SendClickRequest{
 		AdID:         adID,
@@ -157,6 +162,8 @@ func (handler *Handler) HandleSendClick(writer http.ResponseWriter, request *htt
 		common.WriteError(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	log.Printf("click request with adID: %v, was stored at: %v ", click.AdID, click.Timestamp)
 
 	common.WriteJson(writer, http.StatusOK, click)
 }

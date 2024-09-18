@@ -32,17 +32,21 @@ func (gateway *Gateway) CreateAd(ctx context.Context, request *protoBuff.CreateA
 }
 
 func (gateway *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*protoBuff.Ad, error) {
+	log.Printf("starting the connection")
 	conn, err := discovery.ServiceConnection(context.Background(), "ads", gateway.registry)
+
 	if err != nil {
 		log.Fatalf("Failed to dial server: %v", err)
 	}
-
+	log.Printf("connection succeded")
 	client := protoBuff.NewAdsServiceClient(conn)
-
-	return client.GetAD(ctx, &protoBuff.GetAdRequest{
+	adRequest := &protoBuff.GetAdRequest{
 		AdvertiserID: advertiserID,
 		AdID:         adID,
-	})
+	}
+	result, err := client.GetAd(ctx, adRequest)
+
+	return result, err
 }
 
 func (gateway *Gateway) SendClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
@@ -52,7 +56,12 @@ func (gateway *Gateway) SendClick(ctx context.Context, request *protoBuff.SendCl
 	}
 
 	client := protoBuff.NewAggregatorServiceClient(conn)
-	return client.SendClick(ctx, request)
+	result, err := client.SendClick(ctx, request)
+	if err != nil {
+		log.Fatalf("Failed to send click with err: %v", err)
+	}
+
+	return result, err
 }
 
 func (gateway *Gateway) GetClickCounter(ctx context.Context, adID string) (*protoBuff.ClickCounter, error) {

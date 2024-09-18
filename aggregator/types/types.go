@@ -6,9 +6,8 @@ import (
 )
 
 type AggregatorService interface {
-	StoreClick(context.Context, *protoBuff.SendClickRequest) (*protoBuff.Click, error)
-	GetClicksCounter(context.Context, *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error)
-	ValidateClick(ctx context.Context, request *protoBuff.SendClickRequest) (bool, error)
+	SendClick(context.Context, *protoBuff.SendClickRequest) (*protoBuff.Click, error)
+	GetClickCounter(context.Context, *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error)
 }
 
 type ClickCounter struct {

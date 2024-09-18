@@ -10,6 +10,7 @@ import (
 	"github.com/zoninnik89/commons/discovery/consul"
 	"google.golang.org/grpc"
 	"net"
+	"strconv"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -19,7 +20,7 @@ import (
 
 var (
 	serviceName = "aggregator"
-	grpcAddr    = common.EnvString("GRPC_ADDR", "localhost:2000")
+	grpcAddr    = common.EnvString("GRPC_ADDR", "localhost:2001")
 	consulAddr  = common.EnvString("CONSUL_ADDR", "localhost:8500")
 )
 
@@ -61,7 +62,9 @@ func main() {
 
 	gtw := gateway.NewGRPCGateway(registry)
 	storage := store.NewCountMinSketch(5, 20)
-	service := NewService(storage, gtw)
+	cacheCap, _ := strconv.Atoi(common.EnvString("CACHE_CAP", "500"))
+	cache := store.NewCache(cacheCap)
+	service := NewService(storage, gtw, cache)
 
 	NewGrpcHandler(grpcServer, service)
 

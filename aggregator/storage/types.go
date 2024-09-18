@@ -6,3 +6,8 @@ type StoreInterface interface {
 	AddClick(adID string)
 	GetCount(adID string) *t.ClickCounter
 }
+
+type CacheInterface interface {
+	Get(key string) bool
+	Put(key string) string
+}

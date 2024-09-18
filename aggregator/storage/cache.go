@@ -1,4 +1,4 @@
-package main
+package storage
 
 type Node struct {
 	Key  string
@@ -14,8 +14,8 @@ type Cache struct {
 	Capacity int
 }
 
-func NewCache(capacity int) Cache {
-	cache := Cache{
+func NewCache(capacity int) *Cache {
+	cache := &Cache{
 		Cache:    make(map[string]*Node),
 		Capacity: capacity,
 	}
