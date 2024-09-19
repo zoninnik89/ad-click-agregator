@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/common/log"
 	"github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
 	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
-	"time"
-
+	"github.com/zoninnik89/ad-click-aggregator/aggregator/types"
 	protoBuff "github.com/zoninnik89/commons/api"
+	"strings"
 )
 
 type Service struct {
@@ -30,33 +31,30 @@ func (service *Service) GetClickCounter(ctx context.Context, request *protoBuff.
 	return counter.ToProto(), nil
 }
 
-func (service *Service) SendClick(ctx context.Context, request *protoBuff.SendClickRequest) (*protoBuff.Click, error) {
-	var timestamp int64 = generateTS()
+func (service *Service) ConsumeClick(ctx context.Context, consumer *kafka.Consumer) (*types.Click, error) {
 
-	validityCheck, err := service.CheckAdIsValid(ctx, request.AdID, request.ImpressionID)
+	msg, err := consumer.ReadMessage(-1)
 	if err != nil {
-		log.Errorf("error during click validation: %v", err)
+		panic(err)
+	}
+	msgSlice := strings.Split(string(msg.Value), ",") // adID, impressionID, ts
+	adID, impressionID, ts := msgSlice[0], msgSlice[1], msgSlice[2]
+
+	_, err = service.CheckAdIsValid(ctx, adID, impressionID)
+	if err != nil {
 		return nil, err
 	}
 
-	service.store.AddClick(request.AdID)
-	service.cache.Put(request.ImpressionID)
+	service.store.AddClick(adID)
+	service.cache.Put(impressionID)
 
-	log.Infof("click for ad: %v with timestamp: %v was added to the store", request.AdID, timestamp)
-
-	click := &protoBuff.Click{
-		AdID:       request.AdID,
-		Timestamp:  timestamp,
-		IsAccepted: validityCheck,
-	}
-
-	return click, nil
+	return &types.Click{AdID: adID, Timestamp: ts}, nil
 }
 
-func generateTS() int64 {
-	currentTime := time.Now().Unix()
-	return currentTime
-}
+//func generateTS() int64 {
+//	currentTime := time.Now().Unix()
+//	return currentTime
+//}
 
 func (service *Service) CheckAdIsValid(ctx context.Context, adID, tkn string) (bool, error) {
 

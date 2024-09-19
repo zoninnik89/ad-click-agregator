@@ -6,7 +6,6 @@ import (
 )
 
 type AggregatorService interface {
-	SendClick(context.Context, *protoBuff.SendClickRequest) (*protoBuff.Click, error)
 	GetClickCounter(context.Context, *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error)
 }
 
@@ -16,22 +15,13 @@ type ClickCounter struct {
 }
 
 type Click struct {
-	AdID       string
-	Timestamp  int64
-	IsAccepted bool
+	AdID      string
+	Timestamp string
 }
 
 func (clickCounter *ClickCounter) ToProto() *protoBuff.ClickCounter {
 	return &protoBuff.ClickCounter{
 		AdID:        clickCounter.AdId,
 		TotalClicks: clickCounter.TotalClicks,
-	}
-}
-
-func (click *Click) ToProto() *protoBuff.Click {
-	return &protoBuff.Click{
-		AdID:       click.AdID,
-		Timestamp:  click.Timestamp,
-		IsAccepted: click.IsAccepted,
 	}
 }
