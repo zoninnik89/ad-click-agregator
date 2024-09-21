@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/zoninnik89/ad-click-aggregator/gateway/gateway"
+	"github.com/zoninnik89/ad-click-aggregator/gateway/logging"
 	kafkaProducer "github.com/zoninnik89/ad-click-aggregator/gateway/producer"
 	common "github.com/zoninnik89/commons"
 	"github.com/zoninnik89/commons/discovery"
@@ -23,32 +24,42 @@ var (
 func main() {
 	// add open telemetry
 
+	logger := logging.InitLogger()
+	defer logging.Sync()
+
 	registry, err := consul.NewRegistry(consulAddress, serviceName)
 	if err != nil {
+		logger.Panic("Failed to connect to Consul", zap.Error(err))
 		panic(err)
 	}
 
 	ctx := context.Background()
 	instanceID := discovery.GenerateInstanceID(serviceName)
 	if err := registry.Register(ctx, instanceID, serviceName, httpAddress); err != nil {
+		logger.Panic("Failed to register service", zap.Error(err))
 		panic(err)
 	}
 
 	go func() {
 		for {
 			if err := registry.HealthCheck(instanceID, serviceName); err != nil {
-				log.Fatal("failed to health check")
+				logger.Warn("Failed to health check", zap.Error(err))
 			}
 			time.Sleep(time.Second * 1)
 		}
 	}()
 
-	defer registry.Deregister(ctx, instanceID, serviceName)
+	defer func(registry *consul.Registry, ctx context.Context, instanceID string, serviceName string) {
+		err := registry.Deregister(ctx, instanceID, serviceName)
+		if err != nil {
+			logger.Fatal("Failed to deregister service", zap.Error(err))
+		}
+	}(registry, ctx, instanceID, serviceName)
 
 	mux := http.NewServeMux()
 	adsGateway := gateway.NewGRPCGateway(registry)
 
-	log.Println("starting Kafka Producer")
+	logger.Info("Starting Kafka Producer")
 
 	kp := kafkaProducer.NewKafkaProducer()
 	defer kp.Producer.Flush(10)
@@ -56,10 +67,10 @@ func main() {
 	handler := NewHandler(adsGateway, kp)
 	handler.registerRoutes(mux)
 
-	log.Printf("Starting HTTP server at %s", httpAddress)
+	logger.Info("Starting HTTP server at %s", zap.String("port", httpAddress))
 
 	if err := http.ListenAndServe(httpAddress, mux); err != nil {
-		log.Fatal("Failed to start http server")
+		logger.Fatal("Failed to start http server")
 	}
 
 }

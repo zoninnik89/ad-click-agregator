@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	c "github.com/zoninnik89/ad-click-aggregator/aggregator/consumer"
-	gateway "github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
+	"github.com/zoninnik89/ad-click-aggregator/aggregator/logging"
+	"go.uber.org/zap"
+
 	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
 	common "github.com/zoninnik89/commons"
 	"github.com/zoninnik89/commons/discovery"
@@ -14,7 +16,6 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
-	zap "go.uber.org/zap"
 	_ "google.golang.org/grpc"
 )
 
@@ -25,52 +26,66 @@ var (
 )
 
 func main() {
-	logger, _ := zap.NewDevelopment()
-	defer logger.Sync()
+	logger := logging.InitLogger()
+	defer logging.Sync()
 
-	zap.ReplaceGlobals(logger)
-
+	// Connect to Consul
 	registry, err := consul.NewRegistry(consulAddr, serviceName)
 	if err != nil {
+		logger.Panic("Failed to connect to Consul", zap.Error(err))
 		panic(err)
 	}
 
+	// Register self in Consul
 	ctx := context.Background()
 	instanceId := discovery.GenerateInstanceID(serviceName)
 	if err := registry.Register(ctx, instanceId, serviceName, grpcAddr); err != nil {
+		logger.Panic("Failed to register service", zap.Error(err))
 		panic(err)
 	}
 
+	// Run the service and send health checks
 	go func() {
 		for {
 			if err := registry.HealthCheck(instanceId, serviceName); err != nil {
-				logger.Error("Failed to health check", zap.Error(err))
+				logger.Warn("Failed to health check", zap.Error(err))
 			}
 			time.Sleep(time.Second * 1)
 		}
 	}()
 
-	defer registry.Deregister(ctx, instanceId, serviceName)
+	// Deferring the deregister call until the service is shut down
+	defer func(registry *consul.Registry, ctx context.Context, instanceID string, serviceName string) {
+		err := registry.Deregister(ctx, instanceID, serviceName)
+		if err != nil {
+			logger.Fatal("Failed to deregister service", zap.Error(err))
+		}
+	}(registry, ctx, instanceId, serviceName)
 
+	// Initialize the grpc server
 	grpcServer := grpc.NewServer()
 
-	listner, err := net.Listen("tcp", grpcAddr)
+	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		logger.Fatal("failed to listen:", zap.Error(err))
+		logger.Fatal("Failed to listen:", zap.Error(err))
 	}
-	defer listner.Close()
+	defer func(l net.Listener) {
+		err := l.Close()
+		if err != nil {
+			logger.Warn("Failed to close listener", zap.Error(err))
+		}
+	}(l)
 
-	gtw := gateway.NewGRPCGateway(registry)
 	storage := store.NewCountMinSketch(5, 20)
 	cacheCap, _ := strconv.Atoi(common.EnvString("CACHE_CAP", "500"))
 	cache := store.NewCache(cacheCap)
-	service := NewService(storage, gtw, cache)
+	service := NewService(storage, cache)
 
 	NewGrpcHandler(grpcServer, service)
 
 	logger.Info("Starting HTTP server", zap.String("port", grpcAddr))
 
-	logger.Info("Starting Kafka consumer")
+	logger.Info("Starting Kafka Consumer")
 	consumer := c.NewKafkaConsumer()
 
 	topics := []string{"clicks"}
@@ -91,7 +106,7 @@ func main() {
 		time.Sleep(time.Second * 1)
 	}()
 
-	if err := grpcServer.Serve(listner); err != nil {
+	if err := grpcServer.Serve(l); err != nil {
 		logger.Fatal("Failed to serve", zap.Error(err))
 	}
 }

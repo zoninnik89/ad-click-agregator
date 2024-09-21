@@ -5,59 +5,54 @@ import (
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/prometheus/common/log"
-	"github.com/zoninnik89/ad-click-aggregator/aggregator/gateway"
+	"github.com/zoninnik89/ad-click-aggregator/aggregator/logging"
 	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
 	"github.com/zoninnik89/ad-click-aggregator/aggregator/types"
 	protoBuff "github.com/zoninnik89/commons/api"
+	"go.uber.org/zap"
 	"strings"
 )
 
 type Service struct {
-	store   store.StoreInterface
-	gateway gateway.AdsGatewayInterface
-	cache   store.CacheInterface
+	store  store.StoreInterface
+	cache  store.CacheInterface
+	logger *zap.SugaredLogger
 }
 
-func NewService(store store.StoreInterface, gateway gateway.AdsGatewayInterface, cache store.CacheInterface) *Service {
-	return &Service{store: store, gateway: gateway, cache: cache}
+func NewService(store store.StoreInterface, cache store.CacheInterface) *Service {
+	l := logging.GetLogger().Sugar()
+	return &Service{store: store, cache: cache, logger: l}
 }
 
-func (service *Service) GetClickCounter(ctx context.Context, request *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error) {
-	counter := service.store.GetCount(request.AdId)
-
-	//TO DO: add check if Ad exists
+func (s *Service) GetClickCounter(ctx context.Context, request *protoBuff.GetClicksCounterRequest) (*protoBuff.ClickCounter, error) {
+	counter := s.store.GetCount(request.AdId)
 
 	return counter.ToProto(), nil
 }
 
-func (service *Service) ConsumeClick(ctx context.Context, consumer *kafka.Consumer) (*types.Click, error) {
-
+func (s *Service) ConsumeClick(ctx context.Context, consumer *kafka.Consumer) (*types.Click, error) {
 	msg, err := consumer.ReadMessage(-1)
 	if err != nil {
-		panic(err)
+		s.logger.Fatalw("Failed to read message", "err", err)
 	}
 	msgSlice := strings.Split(string(msg.Value), ",") // adID, impressionID, ts
 	adID, impressionID, ts := msgSlice[0], msgSlice[1], msgSlice[2]
 
-	_, err = service.CheckAdIsValid(ctx, adID, impressionID)
+	_, err = s.checkImpressionIDisValid(ctx, adID, impressionID)
 	if err != nil {
+		s.logger.Errorw("ImpressionID is not valid for the given adID", "adID", adID, "impressionID", impressionID, "err", err)
 		return nil, err
 	}
 
-	service.store.AddClick(adID)
-	service.cache.Put(impressionID)
+	s.store.AddClick(adID)
+	s.cache.Put(impressionID)
+	s.logger.Infow("Click was added to the store and to the cache", "adID", adID, "impressionID", impressionID, "at", ts)
 
 	return &types.Click{AdID: adID, Timestamp: ts}, nil
 }
 
-//func generateTS() int64 {
-//	currentTime := time.Now().Unix()
-//	return currentTime
-//}
-
-func (service *Service) CheckAdIsValid(ctx context.Context, adID, tkn string) (bool, error) {
-
+func (s *Service) checkImpressionIDisValid(ctx context.Context, adID, tkn string) (bool, error) {
+	s.logger.Infow("Checking impression ID", "adID", adID, "tkn", tkn)
 	parsedToken, err := jwt.Parse(tkn, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the token method is HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -68,7 +63,6 @@ func (service *Service) CheckAdIsValid(ctx context.Context, adID, tkn string) (b
 
 	// Handle parsing errors
 	if err != nil {
-		log.Errorf("error while parsing token: %v", err)
 		return false, fmt.Errorf("error parsing token: %v", err)
 	}
 
@@ -79,18 +73,18 @@ func (service *Service) CheckAdIsValid(ctx context.Context, adID, tkn string) (b
 		if !adIDOk {
 			// If it's not directly a string, attempt to convert it
 			adIDFromToken = fmt.Sprintf("%v", claims["adID"])
-			log.Infof("adID was converted to: %v", adIDFromToken)
+			s.logger.Infof("adID from the token was converted to: %v", adIDFromToken)
 		}
 
 		impressionIDFromToken, impressionIDOk := claims["impressionID"].(string) // Type assertion to string
 		if !impressionIDOk {
 			// If it's not directly a string, attempt to convert it
 			impressionIDFromToken = fmt.Sprintf("%v", claims["ImpressionID"])
-			log.Infof("impressionID was converted to: %v", impressionIDFromToken)
+			s.logger.Infof("impressionID from the token was converted to: %v", impressionIDFromToken)
 		}
 
-		if impressionIDUsed := service.cache.Get(impressionIDFromToken); impressionIDUsed {
-			return false, fmt.Errorf("ImpressionID: %v already exists", impressionIDFromToken)
+		if impressionIDUsed := s.cache.Get(impressionIDFromToken); impressionIDUsed {
+			return false, fmt.Errorf("impressionID: %v already exists", impressionIDFromToken)
 		}
 		if adID != adIDFromToken {
 			return false, fmt.Errorf("adID from request: %v doesn't match adID from token: %v", adID, adIDFromToken)
@@ -99,3 +93,8 @@ func (service *Service) CheckAdIsValid(ctx context.Context, adID, tkn string) (b
 
 	return true, nil
 }
+
+//func generateTS() int64 {
+//	currentTime := time.Now().Unix()
+//	return currentTime
+//}

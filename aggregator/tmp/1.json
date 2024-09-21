@@ -1,1 +1,0 @@
-{"find": "ads","filter": {"_id": "66e88375ba82da5530430d78","advertiserId": "2"},"limit": {"$numberLong":"1"},"singleBatch": true,"lsid": {"id": {"$binary":{"base64":"GHzOBQ66QQuMvtckOqurkA==","subType":"04"}}},"$db": "ads"}

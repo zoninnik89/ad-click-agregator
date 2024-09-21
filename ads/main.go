@@ -89,7 +89,7 @@ func main() {
 	defer func(l net.Listener) {
 		err := l.Close()
 		if err != nil {
-
+			logger.Warn("Failed to close listener", zap.Error(err))
 		}
 	}(l)
 
