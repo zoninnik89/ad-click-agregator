@@ -5,6 +5,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/zoninnik89/ad-click-aggregator/gateway/logging"
 	"github.com/zoninnik89/ad-click-aggregator/gateway/producer"
+	store "github.com/zoninnik89/ad-click-aggregator/gateway/storage"
 	"go.uber.org/zap"
 	"io"
 	"log"
@@ -23,11 +24,12 @@ type Handler struct {
 	gateway gateway.AdGateway
 	queue   *producer.ClickProducer
 	logger  *zap.SugaredLogger
+	cache   store.CacheInterface
 }
 
-func NewHandler(gateway gateway.AdGateway, queue *producer.ClickProducer) *Handler {
+func NewHandler(g gateway.AdGateway, q *producer.ClickProducer, c store.CacheInterface) *Handler {
 	l := logging.GetLogger().Sugar()
-	return &Handler{gateway: gateway, queue: queue, logger: l}
+	return &Handler{gateway: g, queue: q, logger: l, cache: c}
 }
 
 func (h *Handler) registerRoutes(mux *http.ServeMux) {
@@ -56,6 +58,8 @@ func (h *Handler) HandleGetAd(writer http.ResponseWriter, request *http.Request)
 		common.WriteError(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	h.cache.Put(adID) // store adID in cache to be used for GetCounter request to avoid excessive network calls
 
 	h.logger.Infow("Request returned", zap.Any("ad", ad))
 	common.WriteJson(writer, http.StatusOK, ad)
@@ -111,18 +115,29 @@ func (h *Handler) HandleCreateAd(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
+	h.cache.Put(ad.AdID) // store adID in cache to be used for GetCounter request to avoid excessive network calls
+
 	h.logger.Infow("Ad was created, request returned", zap.Any("ad", ad))
 	common.WriteJson(writer, http.StatusOK, ad)
-
 }
 
 func (h *Handler) HandleGetCounter(writer http.ResponseWriter, request *http.Request) {
 	adID := request.URL.Query().Get("adID")
+	advertiserID := request.URL.Query().Get("advertiserID")
+
 	h.logger.Infow("GetCounter request received", "adID", adID)
 
 	ctx := request.Context()
 
 	// Check that ad exists, first in cache, then if it's not in local cache, check in DB in ads service
+	if err := h.checkIfAdExists(adID, advertiserID); err != nil {
+		h.logger.Errorw("Request returned error", zap.Error(err))
+		common.WriteError(writer, http.StatusNotFound, err.Error())
+		return
+	} else {
+		h.cache.Put(adID)
+		h.logger.Infow("AdID was successfully retrieved and cache was updated", zap.Any("adID", adID))
+	}
 
 	ad, err := h.gateway.GetClickCounter(ctx, adID)
 	rStatus := status.Convert(err)
@@ -143,9 +158,10 @@ func (h *Handler) HandleGetCounter(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Request) {
-	log.Printf("received send click request")
+	log.Printf("SendClick request received")
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
+		h.logger.Errorw("Error reading request body", zap.Error(err))
 		http.Error(writer, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
@@ -154,6 +170,7 @@ func (h *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Requ
 	var requestData SendClickRequestData
 	err = json.Unmarshal(body, &requestData)
 	if err != nil {
+		h.logger.Errorw("Error unmarshalling request body", zap.Error(err))
 		http.Error(writer, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -162,7 +179,7 @@ func (h *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Requ
 	impressionID := requestData.ImpressionID
 	ts := strconv.FormatInt(generateTS(), 10)
 
-	log.Printf("click request has adID: %v and impressionID: %v", adID, impressionID)
+	h.logger.Infow("JSON from the request was successfully unmarshalled", "adID", adID, "impressionID", impressionID)
 
 	value := adID + "," + impressionID + "," + ts
 
@@ -170,6 +187,7 @@ func (h *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Requ
 	err = h.queue.Publish(value, "clicks", nil, deliveryChan)
 
 	if err != nil {
+		h.logger.Errorw("Error publishing click event in Kafka", zap.Error(err))
 		common.WriteJson(writer, http.StatusBadRequest, err)
 	}
 
@@ -177,15 +195,22 @@ func (h *Handler) HandleSendClick(writer http.ResponseWriter, request *http.Requ
 	msg := e.(*kafka.Message)
 
 	if msg.TopicPartition.Error != nil {
-		log.Printf("Message was not published, error: %v", msg.TopicPartition.Error)
+		h.logger.Errorw("Message was not published", "error", msg.TopicPartition.Error)
 	} else {
-		log.Printf("Message published in: %v", msg.TopicPartition)
+		h.logger.Infow("Message successfully published", "message", msg.TopicPartition, "time", msg.Timestamp.String())
 	}
-
 	close(deliveryChan)
-	log.Printf("click request with adID: %v, was stored at: %v ", adID, ts)
 
 	common.WriteJson(writer, http.StatusOK, ClickResponseData{AdID: adID, TS: ts})
+}
+
+func (h *Handler) checkIfAdExists(adID, advertiserID string) error {
+	if adExistsInCache := h.cache.Get(adID); !adExistsInCache {
+		if _, err := h.gateway.GetAd(ctx, advertiserID, adID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func generateTS() int64 {

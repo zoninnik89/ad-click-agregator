@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	store "github.com/zoninnik89/ad-click-aggregator/aggregator/storage"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -64,7 +66,10 @@ func main() {
 	kp := kafkaProducer.NewKafkaProducer()
 	defer kp.Producer.Flush(10)
 
-	handler := NewHandler(adsGateway, kp)
+	cacheCap, _ := strconv.Atoi(common.EnvString("CACHE_CAP", "500"))
+	cache := store.NewCache(cacheCap)
+
+	handler := NewHandler(adsGateway, kp, cache)
 	handler.registerRoutes(mux)
 
 	logger.Info("Starting HTTP server at %s", zap.String("port", httpAddress))

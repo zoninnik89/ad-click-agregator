@@ -2,43 +2,49 @@ package gateway
 
 import (
 	"context"
-	"log"
-
+	"github.com/zoninnik89/ad-click-aggregator/ads/logging"
 	protoBuff "github.com/zoninnik89/commons/api"
 	"github.com/zoninnik89/commons/discovery"
+	"go.uber.org/zap"
 )
 
 type Gateway struct {
 	registry discovery.Registry
+	logger   *zap.SugaredLogger
 }
 
-func NewGRPCGateway(registry discovery.Registry) *Gateway {
-	return &Gateway{registry}
+func NewGRPCGateway(r discovery.Registry) *Gateway {
+	return &Gateway{registry: r, logger: logging.GetLogger().Sugar()}
 }
 
-func (gateway *Gateway) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
-	conn, err := discovery.ServiceConnection(context.Background(), "ads", gateway.registry)
+func (g *Gateway) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+	g.logger.Infow("Starting connection with Ads service")
+	conn, err := discovery.ServiceConnection(context.Background(), "ads", g.registry)
 	if err != nil {
-		log.Fatalf("failed to dial server: %v", err)
+		g.logger.Fatalw("failed to dial server", "err", err)
+		return nil, err
 	}
+	g.logger.Infof("Connection success")
 
 	client := protoBuff.NewAdsServiceClient(conn)
-
-	return client.CreateAd(ctx, &protoBuff.CreateAdRequest{
+	res, err := client.CreateAd(ctx, &protoBuff.CreateAdRequest{
 		AdvertiserID: request.AdvertiserID,
 		Title:        request.Title,
 		AdURL:        request.AdURL,
 	})
+
+	return res, nil
 }
 
-func (gateway *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*protoBuff.Ad, error) {
-	log.Printf("starting the connection")
-	conn, err := discovery.ServiceConnection(context.Background(), "ads", gateway.registry)
+func (g *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*protoBuff.Ad, error) {
+	g.logger.Infow("Starting connection with Ads service")
+	conn, err := discovery.ServiceConnection(context.Background(), "ads", g.registry)
 
 	if err != nil {
-		log.Fatalf("Failed to dial server: %v", err)
+		g.logger.Fatalw("failed to dial server", "err", err)
+		return nil, err
 	}
-	log.Printf("connection succeded")
+	g.logger.Infof("Connection success")
 	client := protoBuff.NewAdsServiceClient(conn)
 	adRequest := &protoBuff.GetAdRequest{
 		AdvertiserID: advertiserID,
@@ -49,10 +55,11 @@ func (gateway *Gateway) GetAd(ctx context.Context, advertiserID, adID string) (*
 	return result, err
 }
 
-func (gateway *Gateway) GetClickCounter(ctx context.Context, adID string) (*protoBuff.ClickCounter, error) {
-	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", gateway.registry)
+func (g *Gateway) GetClickCounter(ctx context.Context, adID string) (*protoBuff.ClickCounter, error) {
+	g.logger.Infow("Starting connection with Aggregator service")
+	conn, err := discovery.ServiceConnection(context.Background(), "aggregator", g.registry)
 	if err != nil {
-		log.Fatalf("Failed to dial server: %v", err)
+		g.logger.Fatalw("failed to dial server", "err", err)
 	}
 
 	client := protoBuff.NewAggregatorServiceClient(conn)

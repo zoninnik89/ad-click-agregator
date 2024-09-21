@@ -52,6 +52,9 @@ func (store *Store) Get(ctx context.Context, id, advertiserID string) (*Ad, erro
 
 	var ad Ad
 	err = collection.FindOne(ctx, filter).Decode(&ad)
+	if err != nil {
+		return nil, fmt.Errorf("ad doesnt exist: %v", err)
+	}
 
 	return &ad, err
 }
