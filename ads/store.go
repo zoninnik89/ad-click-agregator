@@ -37,17 +37,17 @@ func (store *Store) Create(ctx context.Context, ad Ad) (primitive.ObjectID, erro
 
 }
 
-func (store *Store) Get(ctx context.Context, id, advertiserId string) (*Ad, error) {
+func (store *Store) Get(ctx context.Context, id, advertiserID string) (*Ad, error) {
 	collection := store.db.Database(DbName).Collection(CollName)
 
-	adId, err := primitive.ObjectIDFromHex(id)
+	adID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ad ID: %v", err)
+		return nil, fmt.Errorf("invalid adID: %v", err)
 	}
 
 	filter := bson.M{
-		"_id":          adId,
-		"advertiserID": advertiserId,
+		"_id":          adID,
+		"advertiserID": advertiserID,
 	}
 
 	var ad Ad

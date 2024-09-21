@@ -3,40 +3,42 @@ package main
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/zoninnik89/ad-click-aggregator/ads/logging"
 	protoBuff "github.com/zoninnik89/commons/api"
-	"log"
+	"go.uber.org/zap"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/google/uuid"
 	_ "time"
 )
 
 type Service struct {
-	store AdsStore
+	store  AdsStore
+	logger *zap.SugaredLogger
 }
 
 func NewService(store AdsStore) *Service {
-	return &Service{store}
+	l := logging.GetLogger().Sugar()
+	return &Service{store: store, logger: l}
 }
 
-func (service *Service) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
-	ad, err := service.store.Get(ctx, request.AdID, request.AdvertiserID)
+func (s *Service) GetAd(ctx context.Context, request *protoBuff.GetAdRequest) (*protoBuff.Ad, error) {
+	ad, err := s.store.Get(ctx, request.AdID, request.AdvertiserID)
 	if err != nil {
 		return nil, err
 	}
-	ad.ImpressionID, err = service.generateImpressionID(request.AdID)
+
+	ad.ImpressionID, err = s.generateImpressionID(request.AdID)
 	if err != nil {
-		log.Printf("Error generating impression ID: %v\n", err)
 		return nil, err
 	}
-	log.Printf("Impression id was successfully generated for ad: %v with value: %v\n", ad.AdID, ad.ImpressionID)
 
 	return ad.ToProto(), nil
 }
 
-func (service *Service) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
-	id, err := service.store.Create(ctx, Ad{
+func (s *Service) CreateAd(ctx context.Context, request *protoBuff.CreateAdRequest) (*protoBuff.Ad, error) {
+	id, err := s.store.Create(ctx, Ad{
 		AdvertiserID: request.AdvertiserID,
 		Title:        request.Title,
 		AdURL:        request.AdURL,
@@ -62,7 +64,7 @@ type AdClaims struct {
 	jwt.RegisteredClaims
 }
 
-func (service *Service) generateImpressionID(adID string) (string, error) {
+func (s *Service) generateImpressionID(adID string) (string, error) {
 	impressionID := uuid.New().String()
 
 	claims := AdClaims{
@@ -77,10 +79,11 @@ func (service *Service) generateImpressionID(adID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedToken, err := token.SignedString([]byte("secret")) // add vault later
 	if err != nil {
+		s.logger.Infow("Unable to sign impressionID", "adID", adID, "err", err)
 		return "", err
 	}
 
-	log.Printf("Generated impression ID: %v at: %v with expiration time: %v", claims.ImpressionID, claims.IssuedAt, claims.ExpiresAt)
+	s.logger.Infow("Generated impressionID", "impressionID", claims.ImpressionID, "at", claims.IssuedAt, "expiration time", claims.ExpiresAt)
 
 	return signedToken, nil
 }

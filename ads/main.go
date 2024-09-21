@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/zoninnik89/ad-click-aggregator/ads/logging"
 	"github.com/zoninnik89/commons/discovery"
 	"github.com/zoninnik89/commons/discovery/consul"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"net"
 	"time"
 
-	_ "github.com/zoninnik89/ad-click-aggregator/ads/gateway"
 	common "github.com/zoninnik89/commons"
 	_ "github.com/zoninnik89/commons/discovery"
 	_ "github.com/zoninnik89/commons/discovery/consul"
@@ -21,7 +22,6 @@ import (
 	_ "go.mongodb.org/mongo-driver/mongo"
 	_ "go.mongodb.org/mongo-driver/mongo/options"
 	_ "go.mongodb.org/mongo-driver/mongo/readpref"
-	zap "go.uber.org/zap"
 	_ "google.golang.org/grpc"
 	_ "strconv"
 )
@@ -36,48 +36,64 @@ var (
 )
 
 func main() {
-	logger, _ := zap.NewDevelopment()
-	defer logger.Sync()
+	logger := logging.InitLogger()
+	defer logging.Sync()
 
-	zap.ReplaceGlobals(logger)
-
+	// Connect to Consul
 	registry, err := consul.NewRegistry(consulAddr, serviceName)
 	if err != nil {
+		logger.Panic("Failed to connect to Consul", zap.Error(err))
 		panic(err)
 	}
 
+	// Register self in Consul
 	ctx := context.Background()
 	instanceId := discovery.GenerateInstanceID(serviceName)
 	if err := registry.Register(ctx, instanceId, serviceName, grpcAddr); err != nil {
+		logger.Panic("Failed to register service", zap.Error(err))
 		panic(err)
 	}
 
+	// Run the service and send health checks
 	go func() {
 		for {
 			if err := registry.HealthCheck(instanceId, serviceName); err != nil {
-				logger.Error("Failed to health check", zap.Error(err))
+				logger.Warn("Failed to health check", zap.Error(err))
 			}
 			time.Sleep(time.Second * 1)
 		}
 	}()
 
-	defer registry.Deregister(ctx, instanceId, serviceName)
+	// Deferring the deregister call until the service is shut down
+	defer func(registry *consul.Registry, ctx context.Context, instanceID string, serviceName string) {
+		err := registry.Deregister(ctx, instanceID, serviceName)
+		if err != nil {
+			logger.Fatal("Failed to deregister service", zap.Error(err))
+		}
+	}(registry, ctx, instanceId, serviceName)
 
-	// mongo connection
+	// MongoDB connection
 	uri := fmt.Sprintf("mongodb://%s:%s@%s", mongoUser, mongoPass, mongoAddr)
 	mongoClient, err := connectToMongoDB(uri)
 	if err != nil {
-		logger.Fatal("failed to connect to mongodb", zap.Error(err))
+		logger.Fatal("Failed to connect to mongodb", zap.Error(err))
 	}
 
+	// Initialize the grpc server
 	grpcServer := grpc.NewServer()
 
-	listner, err := net.Listen("tcp", grpcAddr)
+	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		logger.Fatal("failed to listen:", zap.Error(err))
+		logger.Fatal("Failed to listen:", zap.Error(err))
 	}
-	defer listner.Close()
+	defer func(l net.Listener) {
+		err := l.Close()
+		if err != nil {
 
+		}
+	}(l)
+
+	// initialize the DB client and new service
 	store := NewStore(mongoClient)
 	service := NewService(store)
 
@@ -85,8 +101,8 @@ func main() {
 
 	logger.Info("Starting HTTP server", zap.String("port", grpcAddr))
 
-	if err := grpcServer.Serve(listner); err != nil {
-		logger.Fatal("failed to serve", zap.Error(err))
+	if err := grpcServer.Serve(l); err != nil {
+		logger.Fatal("Failed to serve", zap.Error(err))
 	}
 
 }
@@ -94,8 +110,6 @@ func main() {
 func connectToMongoDB(uri string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	//loggerOptions := options.Logger().SetComponentLevel(options.LogComponentAll, options.LogLevelDebug)
-	//client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetLoggerOptions(loggerOptions))
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, err
