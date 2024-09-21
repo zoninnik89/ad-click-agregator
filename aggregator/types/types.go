@@ -10,7 +10,7 @@ type AggregatorService interface {
 }
 
 type ClickCounter struct {
-	AdId        string
+	AdID        string
 	TotalClicks int32
 }
 
@@ -21,7 +21,7 @@ type Click struct {
 
 func (clickCounter *ClickCounter) ToProto() *protoBuff.ClickCounter {
 	return &protoBuff.ClickCounter{
-		AdID:        clickCounter.AdId,
+		AdID:        clickCounter.AdID,
 		TotalClicks: clickCounter.TotalClicks,
 	}
 }

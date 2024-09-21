@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/joho/godotenv v1.5.1
-	github.com/zoninnik89/commons v0.1.14
+	github.com/zoninnik89/commons v0.1.15
 	google.golang.org/grpc v1.66.1
 )
 

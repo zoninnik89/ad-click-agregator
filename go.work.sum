@@ -928,6 +928,8 @@ github.com/zoninnik89/commons v0.1.10 h1:ucV6EIE9gCTpVuh2CKegnIsj2SQi43eYzMq4qMh
 github.com/zoninnik89/commons v0.1.10/go.mod h1:tauUIJr2QyQaMtjDXlhHcyc5/OGS/EQtq7fU8vXJmj0=
 github.com/zoninnik89/commons v0.1.13 h1:d1jkOLzErJCygenQ4JYFdUtcWEZH3OyEQciY5dXcdTI=
 github.com/zoninnik89/commons v0.1.13/go.mod h1:tauUIJr2QyQaMtjDXlhHcyc5/OGS/EQtq7fU8vXJmj0=
+github.com/zoninnik89/commons v0.1.15 h1:MU2oFyg/2xYifH9eBgY55t+ukcD1m3h0Zp6e3P7ktJg=
+github.com/zoninnik89/commons v0.1.15/go.mod h1:tauUIJr2QyQaMtjDXlhHcyc5/OGS/EQtq7fU8vXJmj0=
 go.etcd.io/bbolt v1.3.5/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=
 go.etcd.io/bbolt v1.3.7 h1:j+zJOnnEjF/kyHlDDgGnVL/AIqIJPq8UoB2GSNfkUfQ=
 go.etcd.io/bbolt v1.3.7/go.mod h1:N9Mkw9X8x5fupy0IKsmuqVtoGDyxsaDlbk4Rd05IAQw=
